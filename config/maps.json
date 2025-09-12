@@ -1,0 +1,36 @@
+{
+  "maps": {
+    "satellite": {
+      "name": "Satellite",
+      "description": "Satellite imagery tiles",
+      "urlTemplate": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      "maxZoom": 18,
+      "cachePrefix": "satellite",
+      "timeout": 10000,
+      "retryAttempts": 3,
+      "headers": { }
+    },
+    "terrain": {
+      "name": "Terrain",
+      "description": "Terrain with hillshade",
+      "urlTemplate": "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+      "maxZoom": 17,
+      "cachePrefix": "terrain",
+      "timeout": 10000,
+      "retryAttempts": 3,
+      "subdomains": ["a", "b", "c"],
+      "headers": { }
+    },
+    "dark": {
+      "name": "Dark Theme",
+      "description": "Dark themed map tiles",
+      "urlTemplate": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      "maxZoom": 19,
+      "cachePrefix": "dark",
+      "timeout": 10000,
+      "retryAttempts": 3,
+      "subdomains": ["a", "b", "c", "d"],
+      "headers": { }
+    }
+  }
+}

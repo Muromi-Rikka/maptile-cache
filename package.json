@@ -1,0 +1,17 @@
+{
+  "name": "maptile-cache",
+  "scripts": {
+    "dev": "bun run --hot src/server.ts",
+    "start": "bun run src/server.ts"
+  },
+  "dependencies": {
+    "hono": "^4.9.6",
+    "pino": "^9.9.5",
+    "pino-pretty": "^13.1.1"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^5.3.0",
+    "@types/bun": "latest",
+    "eslint": "^9.35.0"
+  }
+}
