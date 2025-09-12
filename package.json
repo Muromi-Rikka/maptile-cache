@@ -1,8 +1,41 @@
 {
   "name": "maptile-cache",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "A high-performance map tile caching service with multi-source support, built with TypeScript and Hono",
+  "author": "Muromi-Rikka",
+  "license": "AGPL-3.0",
+  "homepage": "https://github.com/Muromi-Rikka/maptile-cache#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Muromi-Rikka/maptile-cache.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Muromi-Rikka/maptile-cache/issues"
+  },
+  "keywords": [
+    "map",
+    "tiles",
+    "cache",
+    "s3",
+    "hono",
+    "typescript",
+    "rest-api",
+    "mapping",
+    "gis",
+    "tile-server"
+  ],
+  "main": "src/server.ts",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
   "scripts": {
     "dev": "bun run --hot src/server.ts",
-    "start": "bun run src/server.ts"
+    "start": "bun run src/server.ts",
+    "build": "bun build src/server.ts --outdir=dist",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "hono": "^4.9.6",
