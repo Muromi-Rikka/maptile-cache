@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { cacheTile, getCachedTile } from "./cache";
+import { cacheTileWithType, getCachedTile } from "./cache";
 import { mapConfig } from "./config";
 import logger from "./logger";
 
@@ -23,6 +23,37 @@ async function ensureConfigLoaded(): Promise<void> {
     await mapConfig.loadConfig();
     isConfigLoaded = true;
   }
+}
+
+/**
+ * Detect image type from buffer
+ * @param {Uint8Array} buffer - Image buffer
+ * @returns {string} Image type ('jpg' or 'png')
+ */
+function detectImageType(buffer: Uint8Array): string {
+  // JPEG signature: FF D8 FF
+  if (buffer.length >= 3
+    && buffer[0] === 0xFF
+    && buffer[1] === 0xD8
+    && buffer[2] === 0xFF) {
+    return "jpg";
+  }
+
+  // PNG signature: 89 50 4E 47 0D 0A 1A 0A
+  if (buffer.length >= 8
+    && buffer[0] === 0x89
+    && buffer[1] === 0x50
+    && buffer[2] === 0x4E
+    && buffer[3] === 0x47
+    && buffer[4] === 0x0D
+    && buffer[5] === 0x0A
+    && buffer[6] === 0x1A
+    && buffer[7] === 0x0A) {
+    return "png";
+  }
+
+  // Default to png if unknown
+  return "png";
 }
 
 /**
@@ -118,11 +149,16 @@ app.get("/tiles", async (c) => {
   if (cachedTile) {
     logger.info(`Cache hit for tile: tiles?source=${source}&z=${z}&x=${x}&y=${y}`);
 
-    // Set appropriate response headers
+    // Detect image format from file signature
+    const imageType = detectImageType(cachedTile);
+    const contentType = imageType === "jpg" ? "image/jpeg" : "image/png";
+
+    // Set appropriate response headers for browser preview
     const headers = new Headers();
-    headers.set("Content-Type", "image/png");
+    headers.set("Content-Type", contentType);
     headers.set("Cache-Control", "public, max-age=86400");
     headers.set("X-Cache", "HIT");
+    headers.set("Content-Disposition", "inline"); // Enable browser preview
 
     return new Response(cachedTile, {
       status: 200,
@@ -163,15 +199,33 @@ app.get("/tiles", async (c) => {
 
     const tileBuffer = new Uint8Array(await res.arrayBuffer());
 
+    // Detect image format from response content-type or file signature
+    const contentType = res.headers.get("content-type") || "";
+    let imageType = "png";
+    if (contentType.includes("jpeg") || contentType.includes("jpg")) {
+      imageType = "jpg";
+    }
+    else if (contentType.includes("png")) {
+      imageType = "png";
+    }
+    else {
+      // Fallback to file signature detection
+      imageType = detectImageType(tileBuffer);
+    }
+
     // Cache tile to S3 asynchronously
-    cacheTile(cacheKey, tileBuffer, mapSource.cachePrefix).catch((error) => {
+    cacheTileWithType(cacheKey, tileBuffer, mapSource.cachePrefix, imageType).catch((error) => {
       logger.error(`Failed to cache tile: ${error}`);
     });
 
-    // Set appropriate response headers
+    // Set appropriate response headers for browser preview
     const headers = new Headers();
+    headers.set("Content-Type", imageType === "jpg" ? "image/jpeg" : "image/png");
+    headers.set("Cache-Control", "public, max-age=86400");
+    headers.set("X-Cache", "MISS");
+    headers.set("Content-Disposition", "inline"); // Enable browser preview
 
-    logger.info(`Tile fetched and cached successfully: tiles.png?source=${source}&z=${z}&x=${x}&y=${y}`);
+    logger.info(`Tile fetched and cached successfully: tiles?source=${source}&z=${z}&x=${x}&y=${y}`);
 
     return new Response(tileBuffer, {
       status: 200,

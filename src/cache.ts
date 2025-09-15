@@ -24,6 +24,7 @@ export interface TileCacheKey {
  * @param {string} key.z - The zoom level
  * @param {string} key.mapSource - The map source identifier
  * @param {string} [cachePrefix] - Optional cache prefix override
+ * @param {string} [extension] - Optional file extension (png or jpg)
  * @returns {string} The S3 object key path
  * @example
  * generateTileKey({ x: "1", y: "2", z: "3", mapSource: "osm" })
@@ -32,10 +33,11 @@ export interface TileCacheKey {
 function generateTileKey(
   { x, y, z, mapSource }: TileCacheKey,
   cachePrefix?: string,
+  extension: string = "png",
 ): string {
   const prefix = cachePrefix || mapSource;
   const cleanPrefix = prefix.replace(/^\/+|\/+$/g, ""); // Remove leading and trailing slashes
-  const tilePath = `tiles/${z}/${x}/${y}.png`;
+  const tilePath = `tiles/${z}/${x}/${y}.${extension}`;
 
   return cleanPrefix ? `${cleanPrefix}/${tilePath}` : tilePath;
 }
@@ -79,29 +81,32 @@ export async function getCachedTile(
 }
 
 /**
- * Cache tile to S3
+ * Cache tile to S3 with specified image type
  * @param {TileCacheKey} key - The tile coordinates and map source to cache
  * @param {Uint8Array} data - The tile image data as Uint8Array
  * @param {string} [cachePrefix] - Optional cache prefix override
+ * @param {string} [imageType] - Image type (png or jpg)
  * @returns {Promise<void>} Resolves when tile is successfully cached
  * @throws {Error} Logs error if caching fails
  * @example
  * const response = await fetch(tileUrl);
  * const data = new Uint8Array(await response.arrayBuffer());
- * await cacheTile({ x: "1", y: "2", z: "3", mapSource: "osm" }, data);
+ * await cacheTileWithType({ x: "1", y: "2", z: "3", mapSource: "osm" }, data, "osm", "jpg");
  */
-export async function cacheTile(
+export async function cacheTileWithType(
   key: TileCacheKey,
   data: Uint8Array,
   cachePrefix?: string,
+  imageType: string = "png",
 ): Promise<void> {
   try {
-    const objectKey = generateTileKey(key, cachePrefix);
+    const objectKey = generateTileKey(key, cachePrefix, imageType);
     logger.info(`Caching tile to S3: ${objectKey}`);
 
     const file = s3.file(objectKey);
+    const contentType = imageType === "jpg" ? "image/jpeg" : "image/png";
     await file.write(data, {
-      type: "image/png",
+      type: contentType,
     });
 
     logger.info(`Tile cached successfully: ${objectKey}`);
@@ -109,6 +114,22 @@ export async function cacheTile(
   catch (error) {
     logger.error(`Error caching tile: ${error}`);
   }
+}
+
+/**
+ * Cache tile to S3 (backward compatibility)
+ * @param {TileCacheKey} key - The tile coordinates and map source to cache
+ * @param {Uint8Array} data - The tile image data as Uint8Array
+ * @param {string} [cachePrefix] - Optional cache prefix override
+ * @returns {Promise<void>} Resolves when tile is successfully cached
+ * @throws {Error} Logs error if caching fails
+ */
+export async function cacheTile(
+  key: TileCacheKey,
+  data: Uint8Array,
+  cachePrefix?: string,
+): Promise<void> {
+  return cacheTileWithType(key, data, cachePrefix, "png");
 }
 
 /**
