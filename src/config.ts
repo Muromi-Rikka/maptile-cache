@@ -6,7 +6,6 @@ import logger from "./logger";
  * @property {string} name - Display name of the map source
  * @property {string} description - Description of the map source
  * @property {string} urlTemplate - URL template with {z}, {x}, {y}, {s} placeholders
- * @property {number} maxZoom - Maximum zoom level supported
  * @property {string} cachePrefix - S3 cache prefix for this map source
  * @property {string[]} [subdomains] - Subdomain list for URL rotation
  * @property {Record<string, string>} [headers] - Additional HTTP headers
@@ -15,7 +14,6 @@ export interface MapSource {
   name: string;
   description: string;
   urlTemplate: string;
-  maxZoom: number;
   cachePrefix: string;
   subdomains?: string[];
   headers?: Record<string, string>;

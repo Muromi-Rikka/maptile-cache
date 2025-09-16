@@ -81,13 +81,11 @@ GET /maps
   "maps": {
     "satellite": {
       "name": "Satellite",
-      "description": "Satellite imagery tiles",
-      "maxZoom": 18
+      "description": "Satellite imagery tiles"
     },
     "terrain": {
       "name": "Terrain",
-      "description": "Terrain with hillshade",
-      "maxZoom": 17
+      "description": "Terrain with hillshade"
     }
   }
 }
@@ -101,7 +99,7 @@ GET /tiles?source={source}&z={z}&x={x}&y={y}
 
 **Parameters:**
 - `source`: Map source identifier (e.g., "satellite", "terrain", "dark")
-- `z`: Zoom level (0-19)
+- `z`: Zoom level (0 or higher)
 - `x`: X coordinate
 - `y`: Y coordinate
 
@@ -142,7 +140,6 @@ Map sources are defined in `config/maps.json`. Each source can have the followin
       "name": "Display Name",
       "description": "Description of the map source",
       "urlTemplate": "https://example.com/{z}/{x}/{y}.png",
-      "maxZoom": 19,
       "cachePrefix": "custom-prefix",
       "subdomains": ["a", "b", "c"],
       "headers": {
@@ -160,7 +157,6 @@ Map sources are defined in `config/maps.json`. Each source can have the followin
 | `name` | string | ✅ | Display name of the map source |
 | `description` | string | ✅ | Description for documentation |
 | `urlTemplate` | string | ✅ | URL template with {z}, {x}, {y}, {s} placeholders |
-| `maxZoom` | number | ✅ | Maximum zoom level supported |
 | `cachePrefix` | string | ✅ | S3 cache prefix for this source |
 | `subdomains` | string[] | ❌ | Subdomain list for load balancing |
 | `headers` | object | ❌ | Additional HTTP headers |
@@ -169,9 +165,9 @@ Map sources are defined in `config/maps.json`. Each source can have the followin
 
 The service includes these pre-configured map sources:
 
-1. **satellite** - Satellite imagery from ArcGIS (max zoom: 18)
-2. **terrain** - Terrain tiles from OpenTopoMap (max zoom: 17)
-3. **dark** - Dark themed tiles from CartoDB (max zoom: 19)
+1. **satellite** - Satellite imagery from ArcGIS
+2. **terrain** - Terrain tiles from OpenTopoMap
+3. **dark** - Dark themed tiles from CartoDB
 
 ## Environment Variables
 

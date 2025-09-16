@@ -71,7 +71,6 @@ app.get("/maps", async (c) => {
     acc[id] = {
       name: source.name,
       description: source.description,
-      maxZoom: source.maxZoom,
     };
     return acc;
   }, {} as Record<string, any>);
@@ -128,9 +127,9 @@ app.get("/tiles", async (c) => {
     return c.text(errorMsg, 404);
   }
 
-  // Check zoom level bounds
-  if (zoom < 0 || zoom > mapSource.maxZoom) {
-    const errorMsg = `Zoom level out of range. Max zoom: ${mapSource.maxZoom}`;
+  // Check zoom level bounds (minimum 0, no maximum limit)
+  if (zoom < 0) {
+    const errorMsg = "Zoom level must be non-negative";
     logger.warn(errorMsg);
     return c.text(errorMsg, 400);
   }
