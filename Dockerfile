@@ -1,36 +1,19 @@
 # Use official Bun runtime as base image
 FROM oven/bun:1 AS base
 
-# Set working directory
-WORKDIR /app
-
-# Install dependencies
-FROM base AS deps
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
-
-# Build stage (if needed for TypeScript compilation)
-FROM base AS build
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-# TypeScript compilation happens automatically with Bun
-
-# Production stage
-FROM base AS runtime
-
 # Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files and install production dependencies
+# Copy package files and install dependencies
 COPY package.json bun.lock ./
-RUN bun install --production --frozen-lockfile
+RUN bun install --frozen-lockfile
 
 # Copy configuration and source files
-COPY --from=build /app/config ./config
-COPY --from=build /app/src ./src
+COPY config ./config
+COPY src ./src
 
 # Change ownership to non-root user
 RUN chown -R appuser:appuser /app

@@ -1,5 +1,12 @@
 import logger from "./logger.js";
+import { MemoryCache } from "./memory-cache.js";
 import { s3 } from "./storage.js";
+
+// Memory cache for hot tiles (default: 1000 tiles, 5 min TTL)
+const memoryCache = new MemoryCache<Uint8Array>({
+  maxSize: Number(Bun.env.MEMORY_CACHE_MAX_SIZE) || 1000,
+  ttlMs: Number(Bun.env.MEMORY_CACHE_TTL_MS) || 5 * 60 * 1000,
+});
 
 /**
  * Enhanced tile cache key interface with map source support
@@ -60,19 +67,32 @@ export async function getCachedTile(
 ): Promise<Uint8Array | null> {
   try {
     const objectKey = generateTileKey(key, cachePrefix);
-    logger.info(`Checking S3 cache for tile: ${objectKey}`);
+
+    // Check memory cache first (L1)
+    const memoryResult = memoryCache.get(objectKey);
+    if (memoryResult) {
+      logger.debug(`Memory cache hit for tile: ${objectKey}`);
+      return memoryResult;
+    }
+
+    // Check S3 cache (L2)
+    logger.debug(`Checking S3 cache for tile: ${objectKey}`);
 
     const file = s3.file(objectKey);
     const exists = await file.exists();
 
     if (!exists) {
-      logger.info(`Cache miss for tile: ${objectKey}`);
+      logger.debug(`Cache miss for tile: ${objectKey}`);
       return null;
     }
 
-    const buffer = await file.arrayBuffer();
-    logger.info(`Cache hit for tile: ${objectKey}`);
-    return new Uint8Array(buffer);
+    const buffer = new Uint8Array(await file.arrayBuffer());
+
+    // Store in memory cache for future requests
+    memoryCache.set(objectKey, buffer);
+    logger.debug(`S3 cache hit for tile: ${objectKey}`);
+
+    return buffer;
   }
   catch (error) {
     logger.warn(`Error reading from cache: ${error}`);
@@ -104,12 +124,15 @@ export async function cacheTileWithType(
     logger.info(`Caching tile to S3: ${objectKey}`);
 
     const file = s3.file(objectKey);
-    const contentType = imageType === "jpg" ? "image/jpeg" : "image/png";
+    const contentType = imageType === "jpg" ? "image/jpeg" : imageType === "webp" ? "image/webp" : "image/png";
     await file.write(data, {
       type: contentType,
     });
 
-    logger.info(`Tile cached successfully: ${objectKey}`);
+    // Also store in memory cache
+    memoryCache.set(objectKey, data);
+
+    logger.debug(`Tile cached successfully: ${objectKey}`);
   }
   catch (error) {
     logger.error(`Error caching tile: ${error}`);
@@ -117,44 +140,9 @@ export async function cacheTileWithType(
 }
 
 /**
- * Cache tile to S3 (backward compatibility)
- * @param {TileCacheKey} key - The tile coordinates and map source to cache
- * @param {Uint8Array} data - The tile image data as Uint8Array
- * @param {string} [cachePrefix] - Optional cache prefix override
- * @returns {Promise<void>} Resolves when tile is successfully cached
- * @throws {Error} Logs error if caching fails
+ * Get memory cache statistics
+ * @returns {object} Memory cache statistics
  */
-export async function cacheTile(
-  key: TileCacheKey,
-  data: Uint8Array,
-  cachePrefix?: string,
-): Promise<void> {
-  return cacheTileWithType(key, data, cachePrefix, "png");
-}
-
-/**
- * Check if tile is cached
- * @param {TileCacheKey} key - The tile coordinates and map source to check
- * @param {string} [cachePrefix] - Optional cache prefix override
- * @returns {Promise<boolean>} True if tile exists in cache, false otherwise
- * @throws {Error} Logs warning if error occurs during check
- * @example
- * const exists = await isTileCached({ x: "1", y: "2", z: "3", mapSource: "osm" });
- * if (exists) {
- *   // Tile is cached
- * }
- */
-export async function isTileCached(
-  key: TileCacheKey,
-  cachePrefix?: string,
-): Promise<boolean> {
-  try {
-    const objectKey = generateTileKey(key, cachePrefix);
-    const file = s3.file(objectKey);
-    return await file.exists();
-  }
-  catch (error) {
-    logger.warn(`Error checking cache: ${error}`);
-    return false;
-  }
+export function getMemoryCacheStats(): { size: number; hits: number; misses: number; hitRate: number } {
+  return memoryCache.getStats();
 }

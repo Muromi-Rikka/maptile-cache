@@ -17,6 +17,9 @@ export interface MapSource {
   cachePrefix: string;
   subdomains?: string[];
   headers?: Record<string, string>;
+  timeout?: number;
+  retryAttempts?: number;
+  cacheMaxAge?: number;
 }
 
 /**
