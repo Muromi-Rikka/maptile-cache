@@ -1,137 +1,101 @@
-# MapTile Cache Service
+<p align="center">
+  <img src="./assets/readme/hero.svg" width="100%" alt="MapTile Cache — S3-backed proxy for multi-provider map tiles with L1/L2 caching">
+</p>
 
-A high-performance map tile caching service with multi-source support, built with TypeScript and Hono. Provides RESTful API endpoints for serving cached map tiles with automatic S3 storage and multi-map source configurations.
+## Overview
+
+MapTile Cache sits between your application and map tile providers. It fetches tiles on first request, stores them in S3, and keeps hot tiles in an in-memory LRU cache for fast subsequent reads. Add new providers by editing a JSON file — no code changes required.
+
+```
+Your App → MapTile Cache → [L1 Memory] → [L2 S3] → Tile Provider
+```
 
 ## Features
 
-- 🗺️ **Multi-Map Source Support**: Support for multiple map sources with individual configurations
-- ⚡ **High Performance**: Built with TypeScript and Hono for fast API responses
-- 🏗️ **S3 Cache Storage**: Automatic caching to S3-compatible storage
-- 🔄 **Load Balancing**: Subdomain rotation for map tile providers
-- 📊 **Health Monitoring**: Built-in health check endpoints
-- 🐳 **Docker Ready**: Complete Docker support with compose
-- 🔧 **Configurable**: Easy configuration via JSON files
+| | Feature | What it does |
+|---|---|---|
+| **L1/L2 Cache** | In-memory LRU (configurable size, TTL, byte limit) backed by S3 |
+| **Multi-Source** | Serve satellite, terrain, dark, or custom tile sources from one endpoint |
+| **Singleflight** | Deduplicates concurrent requests for the same tile — one upstream fetch per key |
+| **Multi-Format** | Auto-detects PNG, JPEG, and WebP from file signatures |
+| **Subdomain Rotation** | Distributes load across provider subdomains (`a.tile.example.com`, `b.tile.example.com`, …) |
+| **Rate Limiting** | Built-in configurable rate limiter with sliding window |
+| **Graceful Shutdown** | Drains in-flight requests before stopping (configurable timeout) |
+| **Observability** | `/health` and `/metrics` endpoints with hit rate, latency, and cache stats |
+| **Docker Ready** | Multi-stage Dockerfile, docker-compose, health checks, non-root user |
 
 ## Quick Start
 
-### Local Development
-
 ```bash
-# Install dependencies
+# Clone and install
+git clone https://github.com/Muromi-Rikka/maptile-cache.git
+cd maptile-cache
 bun install
 
-# Start development server
+# Start dev server (hot reload)
 bun run dev
-
-# Access the service
-open http://localhost:5000
 ```
 
-### Docker Deployment
-
-#### Using Docker Compose (Recommended)
-
-1. **Create environment file**:
-```bash
-cat > .env << EOF
-S3_ACCESS_KEY_ID=your-access-key
-S3_SECRET_ACCESS_KEY=your-secret-key
-S3_BUCKET=your-bucket-name
-S3_ENDPOINT=https://your-s3-endpoint.com
-S3_REGION=us-east-1
-S3_PREFIX=production
-EOF
-```
-
-2. **Start the service**:
-```bash
-docker-compose up -d
-```
-
-#### Using Docker CLI
+Fetch a tile:
 
 ```bash
-# Build the image
-docker build -t maptile-cache .
-
-# Run the container
-docker run -d \
-  --name maptile-cache \
-  -p 5000:5000 \
-  -e S3_ACCESS_KEY_ID=your-key \
-  -e S3_SECRET_ACCESS_KEY=your-secret \
-  -e S3_BUCKET=your-bucket \
-  -e S3_ENDPOINT=https://s3-endpoint.com \
-  -e S3_REGION=us-east-1 \
-  -e S3_PREFIX=production \
-  maptile-cache
+curl "http://localhost:5000/tiles?source=satellite&z=3&x=4&y=2" --output tile.png
 ```
 
-## API Endpoints
+List available sources:
 
-### List Available Map Sources
-
-```http
-GET /maps
+```bash
+curl http://localhost:5000/maps
 ```
 
-**Response:**
+## API
+
+### `GET /maps`
+
+Returns all configured map sources.
+
 ```json
 {
   "maps": {
-    "satellite": {
-      "name": "Satellite",
-      "description": "Satellite imagery tiles"
-    },
-    "terrain": {
-      "name": "Terrain",
-      "description": "Terrain with hillshade"
-    }
+    "satellite": { "name": "Satellite", "description": "Satellite imagery tiles" },
+    "terrain": { "name": "Terrain", "description": "Terrain with hillshade" },
+    "dark": { "name": "Dark Theme", "description": "Dark themed map tiles" }
   }
 }
 ```
 
-### Get Map Tile
+### `GET /tiles?source={source}&z={z}&x={x}&y={y}`
 
-```http
-GET /tiles?source={source}&z={z}&x={x}&y={y}
-```
+Fetches a single map tile. Returns the tile image with `X-Cache: HIT` or `X-Cache: MISS` header.
 
-**Parameters:**
-- `source`: Map source identifier (e.g., "satellite", "terrain", "dark")
-- `z`: Zoom level (0 or higher)
-- `x`: X coordinate
-- `y`: Y coordinate
+| Parameter | Type | Description |
+|---|---|---|
+| `source` | string | Map source identifier (e.g. `satellite`, `terrain`, `dark`) |
+| `z` | number | Zoom level (≥ 0) |
+| `x` | number | X coordinate |
+| `y` | number | Y coordinate |
 
-**Examples:**
-```
-- Map tiles: http://localhost:5000/tiles?source=satellite&x=1&y=2&z=3
-GET /tiles?source=terrain&z=10&x=535&y=320
-GET /tiles?source=dark&z=8&x=134&y=87
-```
+### `GET /health`
 
-### Health Check
-
-```http
-GET /health
-```
-
-**Response:**
 ```json
 {
   "status": "ok",
   "timestamp": "2024-01-01T00:00:00.000Z",
   "service": "maptile-cache",
-  "version": "1.0.0",
+  "version": "1.1.5",
   "availableSources": ["satellite", "terrain", "dark"]
 }
 ```
 
+### `GET /metrics`
+
+Returns request counts, cache hit rate, average latency, and memory cache statistics.
+
 ## Configuration
 
-### Map Sources Configuration
+### Map Sources
 
-Map sources are defined in `config/maps.json`. Each source can have the following properties:
+Define tile providers in `config/maps.json`:
 
 ```json
 {
@@ -142,6 +106,8 @@ Map sources are defined in `config/maps.json`. Each source can have the followin
       "urlTemplate": "https://example.com/{z}/{x}/{y}.png",
       "cachePrefix": "custom-prefix",
       "subdomains": ["a", "b", "c"],
+      "timeout": 10000,
+      "retryAttempts": 3,
       "headers": {
         "User-Agent": "Custom Agent"
       }
@@ -150,114 +116,120 @@ Map sources are defined in `config/maps.json`. Each source can have the followin
 }
 ```
 
-### Configuration Properties
-
 | Property | Type | Required | Description |
-|----------|------|----------|-------------|
-| `name` | string | ✅ | Display name of the map source |
-| `description` | string | ✅ | Description for documentation |
-| `urlTemplate` | string | ✅ | URL template with {z}, {x}, {y}, {s} placeholders |
-| `cachePrefix` | string | ✅ | S3 cache prefix for this source |
-| `subdomains` | string[] | ❌ | Subdomain list for load balancing |
-| `headers` | object | ❌ | Additional HTTP headers |
+|---|---|---|---|
+| `name` | string | ✅ | Display name |
+| `description` | string | ✅ | Source description |
+| `urlTemplate` | string | ✅ | URL with `{z}`, `{x}`, `{y}`, `{s}` placeholders |
+| `cachePrefix` | string | ✅ | S3 key prefix for this source |
+| `subdomains` | string[] | — | Subdomain list for `{s}` rotation |
+| `timeout` | number | — | Request timeout in ms (default: 10000) |
+| `retryAttempts` | number | — | Max retry attempts (default: 3) |
+| `headers` | object | — | Additional HTTP headers |
 
-### Default Map Sources
+### Environment Variables
 
-The service includes these pre-configured map sources:
+#### S3 (Required)
 
-1. **satellite** - Satellite imagery from ArcGIS
-2. **terrain** - Terrain tiles from OpenTopoMap
-3. **dark** - Dark themed tiles from CartoDB
+| Variable | Description |
+|---|---|
+| `S3_ACCESS_KEY_ID` | S3 access key |
+| `S3_SECRET_ACCESS_KEY` | S3 secret key |
+| `S3_BUCKET` | S3 bucket name |
+| `S3_ENDPOINT` | S3 endpoint URL |
 
-## Environment Variables
+#### Optional
 
-### Required Variables
-- `S3_ACCESS_KEY_ID`: S3 access key
-- `S3_SECRET_ACCESS_KEY`: S3 secret key
-- `S3_BUCKET`: S3 bucket name
-- `S3_ENDPOINT`: S3 endpoint URL
+| Variable | Default | Description |
+|---|---|---|
+| `S3_REGION` | `us-east-1` | S3 region |
+| `S3_PREFIX` | `tiles` | S3 key prefix |
+| `PORT` | `5000` | Server port |
+| `LOG_LEVEL` | `info` | Logging level |
+| `MEMORY_CACHE_MAX_SIZE` | `1000` | Max tiles in L1 memory cache |
+| `MEMORY_CACHE_TTL_MS` | `300000` | L1 cache TTL (ms) |
+| `MEMORY_CACHE_MAX_BYTES` | `268435456` | L1 cache byte limit (256 MB) |
+| `RATE_LIMIT_WINDOW_MS` | `1000` | Rate limit window (ms) |
+| `RATE_LIMIT_MAX` | `50` | Max requests per window |
+| `SHUTDOWN_TIMEOUT_MS` | `15000` | Graceful shutdown timeout (ms) |
+| `CORS_ORIGINS` | — | Comma-separated allowed origins |
 
-### Optional Variables
-- `S3_REGION`: S3 region (default: us-east-1)
-- `S3_PREFIX`: S3 key prefix for cache organization (default: "tiles")
-- `LOG_LEVEL`: Logging level (default: info)
+### Cache Structure
 
-## Cache Structure
+Tiles are stored in S3 with this layout:
 
-Tiles are cached in S3 with the following structure:
 ```
-s3://bucket-name/
-├── satellite/
-│   └── tiles/
-│       └── {z}/
-│           └── {x}/
-│               └── {y}.png
-├── terrain/
-│   └── tiles/
-│       └── {z}/
-│           └── {x}/
-│               └── {y}.png
-└── dark/
-    └── tiles/
-        └── {z}/
-            └── {x}/
-                └── {y}.png
+s3://bucket/
+├── satellite/tiles/{z}/{x}/{y}.png
+├── terrain/tiles/{z}/{x}/{y}.png
+└── dark/tiles/{z}/{x}/{y}.png
 ```
 
-## Adding New Map Sources
+The service caches the detected file extension per tile, so subsequent requests for the same tile skip extension probing.
 
-1. Edit `config/maps.json`
-2. Add new map source configuration
-3. Restart the service
-4. Access via `/tiles?source=new-source&z={z}&x={x}&y={y}`
+## Deployment
+
+### Docker Compose (Recommended)
+
+```bash
+# Create .env file
+cat > .env << EOF
+S3_ACCESS_KEY_ID=your-access-key
+S3_SECRET_ACCESS_KEY=your-secret-key
+S3_BUCKET=your-bucket-name
+S3_ENDPOINT=https://your-s3-endpoint.com
+S3_REGION=us-east-1
+EOF
+
+# Start
+docker-compose up -d
+```
+
+### Docker CLI
+
+```bash
+docker build -t maptile-cache .
+docker run -d \
+  --name maptile-cache \
+  -p 5000:5000 \
+  -e S3_ACCESS_KEY_ID=your-key \
+  -e S3_SECRET_ACCESS_KEY=your-secret \
+  -e S3_BUCKET=your-bucket \
+  -e S3_ENDPOINT=https://s3-endpoint.com \
+  -e S3_REGION=us-east-1 \
+  maptile-cache
+```
 
 ## Development
 
-### Scripts
-
-- `bun run dev`: Start development server with hot reload
-- `bun run start`: Start production server
-
-### Development Setup
-
 ```bash
-# Clone repository
-git clone <repository-url>
-cd maptile-cache
-
-# Install dependencies
-bun install
-
-# Start development
-bun run dev
+bun run dev          # Dev server with hot reload
+bun run start        # Production server
+bun run build        # Build to dist/
+bun test             # Run tests
+bun run lint         # Lint
+bun run type-check   # Type check
 ```
 
-### Configuration Files
+### Adding a New Map Source
 
-- `config/maps.json`: Map source configurations
-- `.env`: Environment variables (create from `.env.example`)
-- `tsconfig.json`: TypeScript configuration
-- `eslint.config.js`: ESLint configuration
+1. Edit `config/maps.json` and add your source configuration
+2. Restart the service
+3. Access via `/tiles?source=your-source&z={z}&x={x}&y={y}`
 
-## Architecture
+No code changes needed — the service reads config at startup.
 
-### Tech Stack
+## Tech Stack
 
-- **Runtime**: Bun
-- **Framework**: Hono
-- **Language**: TypeScript
-- **Storage**: S3-compatible storage
-- **Logging**: Pino
-- **Container**: Docker
-
-### Key Components
-
-1. **Cache Layer**: Automatic S3 caching with configurable prefixes
-2. **Multi-Source Support**: Dynamic map source switching via query parameters
-3. **Load Balancing**: Subdomain rotation for improved performance
-4. **Health Monitoring**: Comprehensive health check endpoints
-5. **Configuration Management**: JSON-based configuration system
+| Component | Technology |
+|---|---|
+| Runtime | [Bun](https://bun.sh) |
+| Framework | [Hono](https://hono.dev) |
+| Language | TypeScript |
+| Storage | S3-compatible (via [s3-utils](https://github.com/nicepkg/s3-utils)) |
+| Logging | [Pino](https://github.com/pinojs/pino) |
+| Container | Docker |
 
 ## License
 
-MIT License - see LICENSE file for details.
+[Apache-2.0](LICENSE)

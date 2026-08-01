@@ -22,7 +22,7 @@
     "dark": {
       "name": "Dark Theme",
       "description": "Dark themed map tiles",
-      "urlTemplate": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+      "urlTemplate": "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
       "cachePrefix": "dark",
       "timeout": 10000,
       "retryAttempts": 3,

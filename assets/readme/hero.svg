@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="420" viewBox="0 0 1200 420"
+     role="img" aria-labelledby="hero-title hero-desc">
+  <title id="hero-title">MapTile Cache — Map Tile Caching Service</title>
+  <desc id="hero-desc">A dark-themed hero for MapTile Cache showing the project name, key features, and a tile grid visualization with coordinate labels.</desc>
+
+  <defs>
+    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#2a3545" stroke-width="0.5"/>
+    </pattern>
+    <linearGradient id="fade-bottom" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1B2838" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#1B2838" stop-opacity="0.6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="420" rx="12" fill="#1B2838"/>
+  <rect width="1200" height="420" rx="12" fill="url(#grid)"/>
+  <rect width="1200" height="420" rx="12" fill="url(#fade-bottom)"/>
+
+  <!-- Left: Title and content -->
+  <g transform="translate(70 55)">
+    <!-- Eyebrow -->
+    <text font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="13" fill="#4A5568" letter-spacing="2">
+      TILE CACHING SERVICE
+    </text>
+
+    <!-- Project name -->
+    <text y="52" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+          font-size="52" font-weight="700" fill="#FFFFFF" letter-spacing="-1">
+      MapTile Cache
+    </text>
+
+    <!-- Subtitle -->
+    <text y="90" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+          font-size="21" fill="#9CA3AF">
+      S3-backed proxy for multi-provider map tiles
+    </text>
+
+    <!-- Divider line -->
+    <line x1="0" y1="115" x2="120" y2="115" stroke="#2ECCAD" stroke-width="2"/>
+
+    <!-- Feature tags -->
+    <g transform="translate(0 148)" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14">
+      <rect x="-6" y="-14" width="162" height="24" rx="4" fill="rgba(46,204,173,0.12)"/>
+      <text fill="#2ECCAD">L1 Memory + L2 S3</text>
+
+      <g transform="translate(185 0)">
+        <rect x="-6" y="-14" width="152" height="24" rx="4" fill="rgba(46,204,173,0.12)"/>
+        <text fill="#2ECCAD">Multi-Source</text>
+      </g>
+
+      <g transform="translate(360 0)">
+        <rect x="-6" y="-14" width="138" height="24" rx="4" fill="rgba(46,204,173,0.12)"/>
+        <text fill="#2ECCAD">PNG JPG WebP</text>
+      </g>
+    </g>
+
+    <!-- Tech stack tag -->
+    <g transform="translate(0 200)" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14">
+      <rect x="-6" y="-14" width="172" height="24" rx="4" fill="rgba(245,166,35,0.12)"/>
+      <text fill="#F5A623">Hono · Bun · TypeScript</text>
+    </g>
+
+    <!-- Tagline -->
+    <text y="300" font-family="-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+          font-size="14" fill="#4A5568">
+      Cache once, serve everywhere.
+    </text>
+
+    <!-- Version badge -->
+    <g transform="translate(430 300)">
+      <rect x="-2" y="-13" width="50" height="20" rx="4"
+            stroke="#4A5568" stroke-width="0.5" fill="none"/>
+      <text font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#4A5568">v1.1.5</text>
+    </g>
+  </g>
+
+  <!-- Right: Tile grid visualization -->
+  <g transform="translate(700 75)">
+    <!-- Panel background -->
+    <rect x="0" y="0" width="430" height="300" rx="8"
+          fill="#151E2A" stroke="#2a3545" stroke-width="0.5"/>
+
+    <!-- Panel header -->
+    <text x="20" y="30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="13" fill="#4A5568">
+      cached tiles
+    </text>
+    <line x1="0" y1="44" x2="430" y2="44" stroke="#2a3545" stroke-width="0.5"/>
+
+    <!-- Tile grid with labels -->
+    <g transform="translate(70 75)">
+      <!-- Coordinate labels: x values above grid -->
+      <text x="25" y="-8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="12" fill="#4A5568" text-anchor="middle">x=0</text>
+      <text x="85" y="-8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="12" fill="#4A5568" text-anchor="middle">x=1</text>
+      <text x="145" y="-8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="12" fill="#4A5568" text-anchor="middle">x=2</text>
+
+      <!-- Coordinate labels: y values left of grid -->
+      <text x="-12" y="35" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="12" fill="#4A5568" text-anchor="end">y=0</text>
+      <text x="-12" y="95" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="12" fill="#4A5568" text-anchor="end">y=1</text>
+      <text x="-12" y="155" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="12" fill="#4A5568" text-anchor="end">y=2</text>
+
+      <!-- Row 0 -->
+      <rect x="0" y="0" width="50" height="50" rx="4" fill="#2a3545"/>
+      <text x="25" y="30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#6B7280" text-anchor="middle">0,0</text>
+
+      <rect x="60" y="0" width="50" height="50" rx="4" fill="#2a3545"/>
+      <text x="85" y="30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#6B7280" text-anchor="middle">1,0</text>
+
+      <rect x="120" y="0" width="50" height="50" rx="4" fill="#2a3545"/>
+      <text x="145" y="30" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#6B7280" text-anchor="middle">2,0</text>
+
+      <!-- Row 1 -->
+      <rect x="0" y="60" width="50" height="50" rx="4" fill="#2a3545"/>
+      <text x="25" y="90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#6B7280" text-anchor="middle">0,1</text>
+
+      <rect x="60" y="60" width="50" height="50" rx="4" fill="#1A5C4E" stroke="#2ECCAD" stroke-width="1"/>
+      <text x="85" y="86" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#2ECCAD" text-anchor="middle" font-weight="600">1,1</text>
+      <text x="85" y="100" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="9" fill="#2ECCAD" text-anchor="middle" opacity="0.7">HIT</text>
+
+      <rect x="120" y="60" width="50" height="50" rx="4" fill="#2a3545"/>
+      <text x="145" y="90" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#6B7280" text-anchor="middle">2,1</text>
+
+      <!-- Row 2 -->
+      <rect x="0" y="120" width="50" height="50" rx="4" fill="#2a3545"/>
+      <text x="25" y="150" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#6B7280" text-anchor="middle">0,2</text>
+
+      <rect x="60" y="120" width="50" height="50" rx="4" fill="#3B2800" stroke="#F5A623" stroke-width="1"/>
+      <text x="85" y="146" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#F5A623" text-anchor="middle" font-weight="600">1,2</text>
+      <text x="85" y="160" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="9" fill="#F5A623" text-anchor="middle" opacity="0.7">MISS</text>
+
+      <rect x="120" y="120" width="50" height="50" rx="4" fill="#2a3545"/>
+      <text x="145" y="150" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#6B7280" text-anchor="middle">2,2</text>
+    </g>
+
+    <!-- Info line: zoom level -->
+    <text x="20" y="275" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="12" fill="#4A5568">
+      source=satellite · z=4
+    </text>
+
+    <!-- Cache status indicators -->
+    <g transform="translate(260 261)">
+      <rect x="0" y="0" width="8" height="8" rx="2" fill="#2ECCAD"/>
+      <text x="14" y="8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#6B7280">cache hit</text>
+      <rect x="90" y="0" width="8" height="8" rx="2" fill="#F5A623"/>
+      <text x="104" y="8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+            font-size="11" fill="#6B7280">cache miss</text>
+    </g>
+  </g>
+</svg>

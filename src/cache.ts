@@ -1,5 +1,20 @@
 import logger from "./logger.js";
+import { MemoryCache } from "./memory-cache.js";
 import { s3 } from "./storage.js";
+
+// Memory cache for hot tiles (default: 1000 tiles, 5 min TTL, 256MB max)
+const memoryCache = new MemoryCache<Uint8Array>({
+  maxSize: Number(Bun.env.MEMORY_CACHE_MAX_SIZE) || 1000,
+  ttlMs: Number(Bun.env.MEMORY_CACHE_TTL_MS) || 5 * 60 * 1000,
+  maxBytes: Number(Bun.env.MEMORY_CACHE_MAX_BYTES) || 256 * 1024 * 1024,
+});
+
+// Index cache: maps tile identity to its file extension
+// Key: "prefix:z:x:y" → Value: "png" | "jpg" | "webp"
+const extensionIndex = new MemoryCache<string>({
+  maxSize: Number(Bun.env.MEMORY_CACHE_MAX_SIZE) || 1000,
+  ttlMs: Number(Bun.env.MEMORY_CACHE_TTL_MS) || 5 * 60 * 1000,
+});
 
 /**
  * Enhanced tile cache key interface with map source support
@@ -19,16 +34,9 @@ export interface TileCacheKey {
 /**
  * Generate S3 object key based on tile coordinates and map source
  * @param {TileCacheKey} key - The tile coordinates and map source
- * @param {string} key.x - The x coordinate
- * @param {string} key.y - The y coordinate
- * @param {string} key.z - The zoom level
- * @param {string} key.mapSource - The map source identifier
  * @param {string} [cachePrefix] - Optional cache prefix override
- * @param {string} [extension] - Optional file extension (png or jpg)
+ * @param {string} [extension] - Optional file extension (png, jpg, or webp)
  * @returns {string} The S3 object key path
- * @example
- * generateTileKey({ x: "1", y: "2", z: "3", mapSource: "osm" })
- * // Returns: "osm/tiles/3/1/2.png"
  */
 function generateTileKey(
   { x, y, z, mapSource }: TileCacheKey,
@@ -36,43 +44,76 @@ function generateTileKey(
   extension: string = "png",
 ): string {
   const prefix = cachePrefix || mapSource;
-  const cleanPrefix = prefix.replace(/^\/+|\/+$/g, ""); // Remove leading and trailing slashes
+  const cleanPrefix = prefix.replace(/^\/+|\/+$/g, "");
   const tilePath = `tiles/${z}/${x}/${y}.${extension}`;
 
   return cleanPrefix ? `${cleanPrefix}/${tilePath}` : tilePath;
 }
 
 /**
- * Get tile from S3 cache
+ * Generate the index key for extension lookup
+ * @param {TileCacheKey} key - The tile coordinates and map source
+ * @param {string} [cachePrefix] - Optional cache prefix override
+ * @returns {string} The index key
+ */
+function generateIndexKey(
+  { x, y, z, mapSource }: TileCacheKey,
+  cachePrefix?: string,
+): string {
+  const prefix = cachePrefix || mapSource;
+  const cleanPrefix = prefix.replace(/^\/+|\/+$/g, "");
+  return cleanPrefix ? `${cleanPrefix}:${z}:${x}:${y}` : `${z}:${x}:${y}`;
+}
+
+/**
+ * Get tile from cache (L1 memory → L2 S3)
+ * Uses an extension index to avoid probing multiple extensions.
  * @param {TileCacheKey} key - The tile coordinates and map source to retrieve
  * @param {string} [cachePrefix] - Optional cache prefix override
- * @returns {Promise<Uint8Array | null>} The tile data as Uint8Array if found, null otherwise
- * @throws {Error} Logs warning if error occurs during S3 operations
- * @example
- * const tile = await getCachedTile({ x: "1", y: "2", z: "3", mapSource: "osm" });
- * if (tile) {
- *   // Use cached tile
- * }
+ * @returns {Promise<{ data: Uint8Array; imageType: string } | null>} The tile data and type, or null
  */
 export async function getCachedTile(
   key: TileCacheKey,
   cachePrefix?: string,
-): Promise<Uint8Array | null> {
+): Promise<{ data: Uint8Array; imageType: string } | null> {
   try {
-    const objectKey = generateTileKey(key, cachePrefix);
-    logger.info(`Checking S3 cache for tile: ${objectKey}`);
+    const indexKey = generateIndexKey(key, cachePrefix);
 
-    const file = s3.file(objectKey);
-    const exists = await file.exists();
+    // Try the known extension first (from index or previous S3 lookup)
+    const knownExt = extensionIndex.get(indexKey);
+    const extensions = knownExt
+      ? [knownExt, "png", "jpg", "webp"].filter((v, i, a) => a.indexOf(v) === i)
+      : ["png", "jpg", "webp"];
 
-    if (!exists) {
-      logger.info(`Cache miss for tile: ${objectKey}`);
-      return null;
+    for (const ext of extensions) {
+      const objectKey = generateTileKey(key, cachePrefix, ext);
+
+      // L1: Check memory cache
+      const memoryResult = memoryCache.get(objectKey);
+      if (memoryResult) {
+        logger.debug(`Memory cache hit for tile: ${objectKey}`);
+        extensionIndex.set(indexKey, ext);
+        return { data: memoryResult, imageType: ext };
+      }
+
+      // L2: Check S3 cache
+      const file = s3.file(objectKey);
+      const exists = await file.exists();
+
+      if (exists) {
+        const buffer = new Uint8Array(await file.arrayBuffer());
+
+        // Populate L1 and index for future requests
+        memoryCache.set(objectKey, buffer);
+        extensionIndex.set(indexKey, ext);
+        logger.debug(`S3 cache hit for tile: ${objectKey}`);
+
+        return { data: buffer, imageType: ext };
+      }
     }
 
-    const buffer = await file.arrayBuffer();
-    logger.info(`Cache hit for tile: ${objectKey}`);
-    return new Uint8Array(buffer);
+    logger.debug(`Cache miss for tile: ${key.mapSource}/tiles/${key.z}/${key.x}/${key.y}`);
+    return null;
   }
   catch (error) {
     logger.warn(`Error reading from cache: ${error}`);
@@ -81,17 +122,12 @@ export async function getCachedTile(
 }
 
 /**
- * Cache tile to S3 with specified image type
+ * Cache tile to S3 and memory with specified image type
  * @param {TileCacheKey} key - The tile coordinates and map source to cache
  * @param {Uint8Array} data - The tile image data as Uint8Array
  * @param {string} [cachePrefix] - Optional cache prefix override
- * @param {string} [imageType] - Image type (png or jpg)
+ * @param {string} [imageType] - Image type (png, jpg, or webp)
  * @returns {Promise<void>} Resolves when tile is successfully cached
- * @throws {Error} Logs error if caching fails
- * @example
- * const response = await fetch(tileUrl);
- * const data = new Uint8Array(await response.arrayBuffer());
- * await cacheTileWithType({ x: "1", y: "2", z: "3", mapSource: "osm" }, data, "osm", "jpg");
  */
 export async function cacheTileWithType(
   key: TileCacheKey,
@@ -101,15 +137,20 @@ export async function cacheTileWithType(
 ): Promise<void> {
   try {
     const objectKey = generateTileKey(key, cachePrefix, imageType);
+    const indexKey = generateIndexKey(key, cachePrefix);
     logger.info(`Caching tile to S3: ${objectKey}`);
 
     const file = s3.file(objectKey);
-    const contentType = imageType === "jpg" ? "image/jpeg" : "image/png";
+    const contentType = imageType === "jpg" ? "image/jpeg" : imageType === "webp" ? "image/webp" : "image/png";
     await file.write(data, {
       type: contentType,
     });
 
-    logger.info(`Tile cached successfully: ${objectKey}`);
+    // Also store in memory cache and update extension index
+    memoryCache.set(objectKey, data);
+    extensionIndex.set(indexKey, imageType);
+
+    logger.debug(`Tile cached successfully: ${objectKey}`);
   }
   catch (error) {
     logger.error(`Error caching tile: ${error}`);
@@ -117,44 +158,9 @@ export async function cacheTileWithType(
 }
 
 /**
- * Cache tile to S3 (backward compatibility)
- * @param {TileCacheKey} key - The tile coordinates and map source to cache
- * @param {Uint8Array} data - The tile image data as Uint8Array
- * @param {string} [cachePrefix] - Optional cache prefix override
- * @returns {Promise<void>} Resolves when tile is successfully cached
- * @throws {Error} Logs error if caching fails
+ * Get memory cache statistics
+ * @returns {object} Memory cache statistics
  */
-export async function cacheTile(
-  key: TileCacheKey,
-  data: Uint8Array,
-  cachePrefix?: string,
-): Promise<void> {
-  return cacheTileWithType(key, data, cachePrefix, "png");
-}
-
-/**
- * Check if tile is cached
- * @param {TileCacheKey} key - The tile coordinates and map source to check
- * @param {string} [cachePrefix] - Optional cache prefix override
- * @returns {Promise<boolean>} True if tile exists in cache, false otherwise
- * @throws {Error} Logs warning if error occurs during check
- * @example
- * const exists = await isTileCached({ x: "1", y: "2", z: "3", mapSource: "osm" });
- * if (exists) {
- *   // Tile is cached
- * }
- */
-export async function isTileCached(
-  key: TileCacheKey,
-  cachePrefix?: string,
-): Promise<boolean> {
-  try {
-    const objectKey = generateTileKey(key, cachePrefix);
-    const file = s3.file(objectKey);
-    return await file.exists();
-  }
-  catch (error) {
-    logger.warn(`Error checking cache: ${error}`);
-    return false;
-  }
+export function getMemoryCacheStats(): { size: number; hits: number; misses: number; hitRate: number; bytes: number } {
+  return memoryCache.getStats();
 }
