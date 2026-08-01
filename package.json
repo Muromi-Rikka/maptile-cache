@@ -4,7 +4,7 @@
   "version": "1.1.5",
   "description": "A high-performance map tile caching service with multi-source support, built with TypeScript and Hono",
   "author": "Muromi-Rikka",
-  "license": "AGPL-3.0",
+  "license": "Apache-2.0",
   "homepage": "https://github.com/Muromi-Rikka/maptile-cache#readme",
   "repository": {
     "type": "git",
