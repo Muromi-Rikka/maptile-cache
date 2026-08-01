@@ -1,11 +1,13 @@
-import app from "./index";
+import process from "node:process";
+import app, { getInflightRequests } from "./index";
 import logger from "./logger";
+import { rateLimitCleanup } from "./middleware/rate-limit";
 
 const port = Number(Bun.env.PORT) || 5000;
+const shutdownTimeoutMs = Number(Bun.env.SHUTDOWN_TIMEOUT_MS) || 15000;
 
 logger.info(`Server starting on port ${port}`);
 
-// Track active connections for graceful shutdown
 let isShuttingDown = false;
 
 const server = Bun.serve({
@@ -13,7 +15,9 @@ const server = Bun.serve({
   fetch: app.fetch,
 });
 
-// Graceful shutdown handler
+/**
+ * Graceful shutdown: stop accepting connections, wait for in-flight requests
+ */
 async function gracefulShutdown(signal: string) {
   if (isShuttingDown) {
     return;
@@ -25,18 +29,27 @@ async function gracefulShutdown(signal: string) {
   // Stop accepting new connections
   server.stop();
 
-  // Give active requests 10 seconds to complete
-  const shutdownTimeout = setTimeout(() => {
-    logger.warn("Shutdown timeout reached, forcing exit");
-    process.exit(1);
-  }, 10000);
+  // Clean up rate limit timer
+  rateLimitCleanup();
 
-  // Wait a bit for active requests to complete
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  // Wait for in-flight requests to complete
+  const deadline = Date.now() + shutdownTimeoutMs;
+  let remaining = getInflightRequests();
 
-  clearTimeout(shutdownTimeout);
-  logger.info("Graceful shutdown completed");
-  process.exit(0);
+  while (remaining > 0 && Date.now() < deadline) {
+    logger.info(`Waiting for ${remaining} in-flight request(s)...`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    remaining = getInflightRequests();
+  }
+
+  if (remaining > 0) {
+    logger.warn(`Shutdown timeout reached with ${remaining} request(s) still in flight`);
+  }
+  else {
+    logger.info("All in-flight requests completed");
+  }
+
+  process.exit(remaining > 0 ? 1 : 0);
 }
 
 // Register signal handlers

@@ -29,11 +29,11 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # Environment variables documentation
 ENV NODE_ENV=production
 
-# Labels for metadata
+# Labels for metadata (version set at build time from package.json)
 LABEL maintainer="maptile-cache" \
-      version="1.0" \
       description="Map tile caching service with S3 backend" \
-      org.opencontainers.image.source="https://github.com/your-org/maptile-cache"
+      org.opencontainers.image.source="https://github.com/Muromi-Rikka/maptile-cache" \
+      org.opencontainers.image.version="1.1.5"
 
 # Start the application
 CMD ["bun", "run", "start"]

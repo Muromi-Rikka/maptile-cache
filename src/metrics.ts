@@ -44,7 +44,7 @@ export class Metrics {
     cacheHitRate: number;
     errors: number;
     avgLatencyMs: number;
-    memoryCacheStats: { size: number; hits: number; misses: number; hitRate: number };
+    memoryCacheStats: { size: number; hits: number; misses: number; hitRate: number; bytes: number };
   } {
     const totalCache = this.cacheHits + this.cacheMisses;
     return {
@@ -55,7 +55,7 @@ export class Metrics {
       cacheHitRate: totalCache > 0 ? this.cacheHits / totalCache : 0,
       errors: this.errors,
       avgLatencyMs: this.requests > 0 ? this.totalLatency / this.requests : 0,
-      memoryCacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0 },
+      memoryCacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0, bytes: 0 },
     };
   }
 }

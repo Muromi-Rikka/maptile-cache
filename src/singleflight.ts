@@ -9,7 +9,8 @@ export class Singleflight<T> {
   /**
    * Execute a function with singleflight deduplication
    * If a request for the same key is already in flight,
-   * subsequent calls will wait for the first request's result
+   * subsequent calls will wait for the first request's result.
+   * On error, the entry is removed so the next caller can retry.
    * @param {string} key - The deduplication key
    * @param {() => Promise<T>} fn - The function to execute
    * @returns {Promise<T>} The result of the function
@@ -20,7 +21,12 @@ export class Singleflight<T> {
       return existing;
     }
 
-    const promise = fn().finally(() => {
+    const promise = fn().catch((error) => {
+      // Remove on failure so the next caller can retry
+      this.inflight.delete(key);
+      throw error;
+    }).finally(() => {
+      // Only delete on success (error path already deleted)
       this.inflight.delete(key);
     });
 

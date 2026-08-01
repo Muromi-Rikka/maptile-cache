@@ -9,10 +9,25 @@ interface RateLimitRecord {
 }
 
 /**
+ * Cleanup handle for the periodic timer
+ */
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Cleanup the rate limit periodic timer (call during shutdown)
+ */
+export function rateLimitCleanup(): void {
+  if (cleanupTimer !== null) {
+    clearInterval(cleanupTimer);
+    cleanupTimer = null;
+  }
+}
+
+/**
  * Simple in-memory rate limiting middleware
  * @param {object} options - Rate limit options
- * @param {number} [options.windowMs=1000] - Time window in milliseconds
- * @param {number} [options.max=50] - Maximum requests per window
+ * @param {number} [options.windowMs] - Time window in milliseconds
+ * @param {number} [options.max] - Maximum requests per window
  * @returns {Function} Hono middleware function
  */
 export function rateLimit(options: { windowMs?: number; max?: number } = {}) {
@@ -20,7 +35,10 @@ export function rateLimit(options: { windowMs?: number; max?: number } = {}) {
   const hits = new Map<string, RateLimitRecord>();
 
   // Cleanup old entries periodically
-  setInterval(() => {
+  if (cleanupTimer !== null) {
+    clearInterval(cleanupTimer);
+  }
+  cleanupTimer = setInterval(() => {
     const now = Date.now();
     hits.forEach((record, ip) => {
       if (now > record.resetTime) {
@@ -28,6 +46,11 @@ export function rateLimit(options: { windowMs?: number; max?: number } = {}) {
       }
     });
   }, windowMs * 2);
+
+  // Allow the process to exit even if the timer is active
+  if (cleanupTimer && typeof cleanupTimer === "object" && "unref" in cleanupTimer) {
+    cleanupTimer.unref();
+  }
 
   return async (c: Context, next: Next) => {
     const ip = c.req.header("x-forwarded-for")
