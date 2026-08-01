@@ -2,5 +2,5 @@
 node_modules/
 .idea
 .env.local
-
+.env
 # Test files are now tracked (removed from gitignore)

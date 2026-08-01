@@ -66,33 +66,36 @@ export async function getCachedTile(
   cachePrefix?: string,
 ): Promise<Uint8Array | null> {
   try {
-    const objectKey = generateTileKey(key, cachePrefix);
+    // Try multiple extensions to find cached tile
+    const extensions = ["png", "jpg", "webp"];
 
-    // Check memory cache first (L1)
-    const memoryResult = memoryCache.get(objectKey);
-    if (memoryResult) {
-      logger.debug(`Memory cache hit for tile: ${objectKey}`);
-      return memoryResult;
+    for (const ext of extensions) {
+      const objectKey = generateTileKey(key, cachePrefix, ext);
+
+      // Check memory cache first (L1)
+      const memoryResult = memoryCache.get(objectKey);
+      if (memoryResult) {
+        logger.debug(`Memory cache hit for tile: ${objectKey}`);
+        return memoryResult;
+      }
+
+      // Check S3 cache (L2)
+      const file = s3.file(objectKey);
+      const exists = await file.exists();
+
+      if (exists) {
+        const buffer = new Uint8Array(await file.arrayBuffer());
+
+        // Store in memory cache for future requests
+        memoryCache.set(objectKey, buffer);
+        logger.debug(`S3 cache hit for tile: ${objectKey}`);
+
+        return buffer;
+      }
     }
 
-    // Check S3 cache (L2)
-    logger.debug(`Checking S3 cache for tile: ${objectKey}`);
-
-    const file = s3.file(objectKey);
-    const exists = await file.exists();
-
-    if (!exists) {
-      logger.debug(`Cache miss for tile: ${objectKey}`);
-      return null;
-    }
-
-    const buffer = new Uint8Array(await file.arrayBuffer());
-
-    // Store in memory cache for future requests
-    memoryCache.set(objectKey, buffer);
-    logger.debug(`S3 cache hit for tile: ${objectKey}`);
-
-    return buffer;
+    logger.debug(`Cache miss for tile: ${key.mapSource}/tiles/${key.z}/${key.x}/${key.y}`);
+    return null;
   }
   catch (error) {
     logger.warn(`Error reading from cache: ${error}`);
