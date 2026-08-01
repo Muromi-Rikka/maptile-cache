@@ -63,6 +63,19 @@ export class MapConfig {
       }
 
       this.config = await file.json();
+
+      // Check for duplicate cachePrefix values
+      const seen = new Map<string, string>();
+      for (const [id, source] of Object.entries(this.config!.maps)) {
+        const existing = seen.get(source.cachePrefix);
+        if (existing) {
+          throw new Error(
+            `Duplicate cachePrefix "${source.cachePrefix}" found in map sources "${existing}" and "${id}". Each map source must have a unique cachePrefix.`,
+          );
+        }
+        seen.set(source.cachePrefix, id);
+      }
+
       logger.info(`Loaded ${Object.keys(this.config!.maps).length} map sources from ${configPath}`);
     }
     catch (error) {
