@@ -43,10 +43,9 @@ function errorResponse(c: Context, message: string, status: number) {
  */
 const app = new Hono();
 
-// CORS middleware — restrict to configured origins or same-origin by default
-const allowedOrigins = Bun.env.CORS_ORIGINS?.split(",").map(s => s.trim()) ?? [];
+// CORS middleware — allow all origins
 app.use("*", cors({
-  origin: allowedOrigins.length > 0 ? allowedOrigins : undefined,
+  origin: "*",
 }));
 
 // Rate limiting middleware
