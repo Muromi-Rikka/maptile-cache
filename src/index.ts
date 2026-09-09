@@ -11,7 +11,6 @@ import { Singleflight } from "./singleflight";
 // Read version from package.json
 const APP_VERSION: string = (() => {
   try {
-    // eslint-disable-next-line ts/no-require-imports
     return require("../package.json").version ?? "unknown";
   }
   catch {
@@ -23,19 +22,20 @@ const APP_VERSION: string = (() => {
  * Standard error response interface
  */
 interface ErrorResponse {
-  error: string;
   code: number;
+  error: string;
 }
 
 /**
  * Create a standardized error response
+ *
  * @param {Context} c - Hono context
  * @param {string} message - Error message
  * @param {number} status - HTTP status code
  * @returns {Response} JSON error response
  */
 function errorResponse(c: Context, message: string, status: number) {
-  return c.json({ error: message, code: status } satisfies ErrorResponse, status as any);
+  return c.json({ code: status, error: message } satisfies ErrorResponse, status as any);
 }
 
 /**
@@ -43,20 +43,19 @@ function errorResponse(c: Context, message: string, status: number) {
  */
 const app = new Hono();
 
-// CORS middleware — allow all origins
 app.use("*", cors({
   origin: "*",
 }));
 
 // Rate limiting middleware
 const rateLimitMiddleware = rateLimit({
-  windowMs: Number(Bun.env.RATE_LIMIT_WINDOW_MS) || 1000,
   max: Number(Bun.env.RATE_LIMIT_MAX) || 50,
+  windowMs: Number(Bun.env.RATE_LIMIT_WINDOW_MS) || 1000,
 });
 app.use("*", rateLimitMiddleware);
 
 // Singleflight instance for tile request deduplication
-const tileSingleflight = new Singleflight<Uint8Array | null>();
+const tileSingleflight = new Singleflight<null | Uint8Array>();
 
 // In-flight request tracking for graceful shutdown
 let inflightRequests = 0;
@@ -64,7 +63,7 @@ let inflightRequests = 0;
 /**
  * Middleware to ensure configuration is loaded (runs once)
  */
-let configLoadPromise: Promise<void> | null = null;
+let configLoadPromise: null | Promise<void> = null;
 async function ensureConfigMiddleware(_c: Context, next: Next) {
   if (!configLoadPromise) {
     configLoadPromise = mapConfig.loadConfig().catch((error) => {
@@ -79,63 +78,8 @@ async function ensureConfigMiddleware(_c: Context, next: Next) {
 app.use("*", ensureConfigMiddleware);
 
 /**
- * Fetch with timeout and retry support
- * @param {string} url - URL to fetch
- * @param {object} options - Fetch options with timeout and retry
- * @param {Record<string, string>} options.headers - Request headers
- * @param {number} [options.timeout] - Request timeout in ms
- * @param {number} [options.retries] - Max retry attempts
- * @returns {Promise<Response>} Fetch response
- */
-async function fetchWithRetry(
-  url: string,
-  options: {
-    headers: Record<string, string>;
-    timeout?: number;
-    retries?: number;
-  },
-): Promise<Response> {
-  const { timeout = 10000, retries = 3, ...fetchOptions } = options;
-
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
-
-    try {
-      const res = await fetch(url, { ...fetchOptions, signal: controller.signal });
-      clearTimeout(timer);
-
-      if (res.ok) {
-        return res;
-      }
-
-      // Consume body to free the connection before retrying
-      await res.text().catch(() => {});
-
-      // Don't retry client errors (4xx except 429)
-      if (res.status >= 400 && res.status < 500 && res.status !== 429) {
-        return res;
-      }
-
-      if (attempt === retries) {
-        return res;
-      }
-    }
-    catch (error) {
-      clearTimeout(timer);
-      if (attempt === retries) {
-        throw error;
-      }
-      // Exponential backoff: 100ms, 200ms, 400ms
-      await new Promise(r => setTimeout(r, 100 * 2 ** attempt));
-    }
-  }
-
-  throw new Error("Unreachable");
-}
-
-/**
  * Detect image type from buffer
+ *
  * @param {Uint8Array} buffer - Image buffer
  * @returns {string} Image type ('jpg', 'png', or 'webp')
  */
@@ -175,42 +119,107 @@ function detectImageType(buffer: Uint8Array): string {
 }
 
 /**
+ * Fetch with timeout and retry support
+ *
+ * @param {string} url - URL to fetch
+ * @param {object} options - Fetch options with timeout and retry
+ * @param {Record<string, string>} options.headers - Request headers
+ * @param {number} [options.timeout] - Request timeout in ms
+ * @param {number} [options.retries] - Max retry attempts
+ * @returns {Promise<Response>} Fetch response
+ */
+async function fetchWithRetry(
+  url: string,
+  options: {
+    headers: Record<string, string>;
+    retries?: number;
+    timeout?: number;
+  },
+): Promise<Response> {
+  const { retries = 3, timeout = 10000, ...fetchOptions } = options;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, { ...fetchOptions, signal: controller.signal });
+      clearTimeout(timer);
+
+      if (response.ok) {
+        return response;
+      }
+
+      // Consume body to free the connection before retrying
+      await response.text().catch(() => {});
+
+      // Don't retry client errors (4xx except 429)
+      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+        return response;
+      }
+
+      if (attempt === retries) {
+        return response;
+      }
+    }
+    catch (error) {
+      clearTimeout(timer);
+      if (attempt === retries) {
+        throw error;
+      }
+      // Exponential backoff: 100ms, 200ms, 400ms
+      await new Promise(r => setTimeout(r, 100 * 2 ** attempt));
+    }
+  }
+
+  throw new Error("Unreachable");
+}
+
+/**
  * Get content type from image type
+ *
  * @param {string} imageType - Image type ('jpg', 'png', or 'webp')
  * @returns {string} MIME content type
  */
 function getContentType(imageType: string): string {
   switch (imageType) {
-    case "jpg":
+    case "jpg": {
       return "image/jpeg";
-    case "webp":
+    }
+    case "webp": {
       return "image/webp";
-    default:
+    }
+    default: {
       return "image/png";
+    }
   }
 }
 
 /**
  * GET /maps - List available map sources
- * @route GET /maps
+ *
+ * GET /maps
+ *
  * @returns {Response} List of available map sources with metadata
  */
 app.get("/maps", (c) => {
   const sources = mapConfig.getAllMapSources();
-  const response = Object.entries(sources).reduce((acc, [id, source]) => {
-    acc[id] = {
-      name: source.name,
+  const response = Object.entries(sources).reduce((accumulator, [id, source]) => {
+    accumulator[id] = {
       description: source.description,
+      name: source.name,
     };
-    return acc;
-  }, {} as Record<string, { name: string; description: string }>);
+    return accumulator;
+  }, {} as Record<string, { description: string; name: string }>);
 
   return c.json({ maps: response });
 });
 
 /**
  * GET /tiles - Get tile with multi-source support
- * @route GET /tiles
+ *
+ * GET /tiles
+ *
  * @returns {Promise<Response>} Image response with appropriate headers
  */
 app.get("/tiles", async (c) => {
@@ -221,39 +230,39 @@ app.get("/tiles", async (c) => {
   try {
     // Validate parameters
     if (!source || !x || !y || !z) {
-      const errorMsg = "Missing required query parameters: source, x, y, z";
-      logger.warn(errorMsg);
-      return errorResponse(c, errorMsg, 400);
+      const errorMessage = "Missing required query parameters: source, x, y, z";
+      logger.warn(errorMessage);
+      return errorResponse(c, errorMessage, 400);
     }
 
     // Parse and validate numeric values
-    const zoom = Number.parseInt(z, 10);
-    const xCoord = Number.parseInt(x, 10);
-    const yCoord = Number.parseInt(y, 10);
+    const zoom = Number(z);
+    const xCoord = Number(x);
+    const yCoord = Number(y);
 
     if (Number.isNaN(zoom) || Number.isNaN(xCoord) || Number.isNaN(yCoord)) {
-      const errorMsg = "Invalid coordinate format";
-      logger.warn(errorMsg);
-      return errorResponse(c, errorMsg, 400);
+      const errorMessage = "Invalid coordinate format";
+      logger.warn(errorMessage);
+      return errorResponse(c, errorMessage, 400);
     }
 
     // Get map source configuration
     const mapSource = mapConfig.getMapSource(source);
     if (!mapSource) {
-      const errorMsg = `Map source not found: ${source}`;
-      logger.warn(errorMsg);
-      return errorResponse(c, errorMsg, 404);
+      const errorMessage = `Map source not found: ${source}`;
+      logger.warn(errorMessage);
+      return errorResponse(c, errorMessage, 404);
     }
 
     // Check zoom level bounds
     if (zoom < 0) {
-      const errorMsg = "Zoom level must be non-negative";
-      logger.warn(errorMsg);
-      return errorResponse(c, errorMsg, 400);
+      const errorMessage = "Zoom level must be non-negative";
+      logger.warn(errorMessage);
+      return errorResponse(c, errorMessage, 400);
     }
 
     // Build tile cache key
-    const cacheKey = { x, y, z, mapSource: source };
+    const cacheKey = { mapSource: source, x, y, z };
 
     // Use singleflight to deduplicate concurrent requests for the same tile
     const sfKey = `${source}:${z}:${x}:${y}`;
@@ -273,14 +282,14 @@ app.get("/tiles", async (c) => {
 
       // Build tile URL
       let url = mapSource.urlTemplate
-        .replace("{z}", z)
-        .replace("{x}", x)
-        .replace("{y}", y);
+        .replaceAll("{z}", z)
+        .replaceAll("{x}", x)
+        .replaceAll("{y}", y);
 
       // Handle subdomain rotation
       if (mapSource.subdomains && mapSource.subdomains.length > 0) {
         const subdomainIndex = (xCoord + yCoord + zoom) % mapSource.subdomains.length;
-        url = url.replace("{s}", mapSource.subdomains[subdomainIndex]);
+        url = url.replaceAll("{s}", mapSource.subdomains[subdomainIndex]);
       }
 
       logger.debug(`Cache miss, fetching tile: tiles?source=${source}&z=${z}&x=${x}&y=${y} from ${url}`);
@@ -291,20 +300,20 @@ app.get("/tiles", async (c) => {
         ...mapSource.headers,
       };
 
-      const res = await fetchWithRetry(url, {
+      const response = await fetchWithRetry(url, {
         headers: requestHeaders,
-        timeout: mapSource.timeout,
         retries: mapSource.retryAttempts,
+        timeout: mapSource.timeout,
       });
 
-      if (!res.ok) {
-        throw new Error(`Failed to fetch tile from source: ${res.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch tile from source: ${response.statusText}`);
       }
 
-      const buffer = new Uint8Array(await res.arrayBuffer());
+      const buffer = new Uint8Array(await response.arrayBuffer());
 
       // Detect image format from response content-type or file signature
-      const contentType = res.headers.get("content-type") || "";
+      const contentType = response.headers.get("content-type") || "";
       if (contentType.includes("jpeg") || contentType.includes("jpg")) {
         imageType = "jpg";
       }
@@ -340,13 +349,13 @@ app.get("/tiles", async (c) => {
     metrics.recordRequest(isCacheHit, Date.now() - startTime);
 
     return new Response(tileBuffer as unknown as BodyInit, {
-      status: 200,
       headers,
+      status: 200,
     });
   }
   catch (error) {
-    const errorMsg = `Error fetching tile: ${error}`;
-    logger.error(errorMsg);
+    const errorMessage = `Error fetching tile: ${error}`;
+    logger.error(errorMessage);
     metrics.recordError();
     return errorResponse(c, "Internal server error", 500);
   }
@@ -357,22 +366,26 @@ app.get("/tiles", async (c) => {
 
 /**
  * GET /health - Health check endpoint
- * @route GET /health
+ *
+ * GET /health
+ *
  * @returns {Response} Health status response
  */
 app.get("/health", (c) => {
   return c.json({
+    availableSources: mapConfig.getAvailableSources(),
+    service: "maptile-cache",
     status: "ok",
     timestamp: new Date().toISOString(),
-    service: "maptile-cache",
     version: APP_VERSION,
-    availableSources: mapConfig.getAvailableSources(),
   });
 });
 
 /**
  * GET /metrics - Metrics endpoint
- * @route GET /metrics
+ *
+ * GET /metrics
+ *
  * @returns {Response} Metrics snapshot
  */
 app.get("/metrics", (c) => {
@@ -383,6 +396,7 @@ app.get("/metrics", (c) => {
 
 /**
  * Get the current number of in-flight requests (for graceful shutdown)
+ *
  * @returns {number} Number of in-flight requests
  */
 export function getInflightRequests(): number {

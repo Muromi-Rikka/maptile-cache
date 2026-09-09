@@ -2,27 +2,39 @@
  * Metrics collector for tile cache service
  */
 export class Metrics {
-  private requests = 0;
   private cacheHits = 0;
   private cacheMisses = 0;
   private errors = 0;
-  private totalLatency = 0;
+  private requests = 0;
   private readonly startTime = Date.now();
+  private totalLatency = 0;
 
   /**
-   * Record a tile request
-   * @param {boolean} cacheHit - Whether the request was a cache hit
-   * @param {number} latencyMs - Request latency in milliseconds
+   * Get metrics snapshot
+   *
+   * @returns {object} Current metrics
    */
-  recordRequest(cacheHit: boolean, latencyMs: number): void {
-    this.requests++;
-    this.totalLatency += latencyMs;
-    if (cacheHit) {
-      this.cacheHits++;
-    }
-    else {
-      this.cacheMisses++;
-    }
+  getSnapshot(): {
+    avgLatencyMs: number;
+    cacheHitRate: number;
+    cacheHits: number;
+    cacheMisses: number;
+    errors: number;
+    memoryCacheStats: { bytes: number; hitRate: number; hits: number; misses: number; size: number };
+    requests: number;
+    uptime: number;
+  } {
+    const totalCache = this.cacheHits + this.cacheMisses;
+    return {
+      avgLatencyMs: this.requests > 0 ? this.totalLatency / this.requests : 0,
+      cacheHitRate: totalCache > 0 ? this.cacheHits / totalCache : 0,
+      cacheHits: this.cacheHits,
+      cacheMisses: this.cacheMisses,
+      errors: this.errors,
+      memoryCacheStats: { bytes: 0, hitRate: 0, hits: 0, misses: 0, size: 0 },
+      requests: this.requests,
+      uptime: Math.floor((Date.now() - this.startTime) / 1000),
+    };
   }
 
   /**
@@ -33,30 +45,20 @@ export class Metrics {
   }
 
   /**
-   * Get metrics snapshot
-   * @returns {object} Current metrics
+   * Record a tile request
+   *
+   * @param {boolean} isCacheHit - Whether the request was a cache hit
+   * @param {number} latencyMs - Request latency in milliseconds
    */
-  getSnapshot(): {
-    uptime: number;
-    requests: number;
-    cacheHits: number;
-    cacheMisses: number;
-    cacheHitRate: number;
-    errors: number;
-    avgLatencyMs: number;
-    memoryCacheStats: { size: number; hits: number; misses: number; hitRate: number; bytes: number };
-  } {
-    const totalCache = this.cacheHits + this.cacheMisses;
-    return {
-      uptime: Math.floor((Date.now() - this.startTime) / 1000),
-      requests: this.requests,
-      cacheHits: this.cacheHits,
-      cacheMisses: this.cacheMisses,
-      cacheHitRate: totalCache > 0 ? this.cacheHits / totalCache : 0,
-      errors: this.errors,
-      avgLatencyMs: this.requests > 0 ? this.totalLatency / this.requests : 0,
-      memoryCacheStats: { size: 0, hits: 0, misses: 0, hitRate: 0, bytes: 0 },
-    };
+  recordRequest(isCacheHit: boolean, latencyMs: number): void {
+    this.requests++;
+    this.totalLatency += latencyMs;
+    if (isCacheHit) {
+      this.cacheHits++;
+    }
+    else {
+      this.cacheMisses++;
+    }
   }
 }
 
