@@ -11,27 +11,18 @@ interface RateLimitRecord {
 /**
  * Cleanup handle for the periodic timer
  */
-let cleanupTimer: ReturnType<typeof setInterval> | null = null;
-
-/**
- * Cleanup the rate limit periodic timer (call during shutdown)
- */
-export function rateLimitCleanup(): void {
-  if (cleanupTimer !== null) {
-    clearInterval(cleanupTimer);
-    cleanupTimer = null;
-  }
-}
+let cleanupTimer: null | ReturnType<typeof setInterval> = null;
 
 /**
  * Simple in-memory rate limiting middleware
+ *
  * @param {object} options - Rate limit options
  * @param {number} [options.windowMs] - Time window in milliseconds
  * @param {number} [options.max] - Maximum requests per window
  * @returns {Function} Hono middleware function
  */
-export function rateLimit(options: { windowMs?: number; max?: number } = {}) {
-  const { windowMs = 1000, max = 50 } = options;
+export function rateLimit(options: { max?: number; windowMs?: number } = {}) {
+  const { max = 50, windowMs = 1000 } = options;
   const hits = new Map<string, RateLimitRecord>();
 
   // Cleanup old entries periodically
@@ -71,7 +62,7 @@ export function rateLimit(options: { windowMs?: number; max?: number } = {}) {
       c.header("X-RateLimit-Limit", String(max));
       c.header("X-RateLimit-Remaining", "0");
       c.header("Retry-After", String(Math.ceil((record.resetTime - now) / 1000)));
-      return c.json({ error: "Too many requests", code: 429 }, 429);
+      return c.json({ code: 429, error: "Too many requests" }, 429);
     }
 
     record.count++;
@@ -79,4 +70,16 @@ export function rateLimit(options: { windowMs?: number; max?: number } = {}) {
     c.header("X-RateLimit-Remaining", String(max - record.count));
     await next();
   };
+}
+
+/**
+ * Cleanup the rate limit periodic timer (call during shutdown)
+ */
+export function rateLimitCleanup(): void {
+  if (cleanupTimer === null) {
+    return;
+  }
+
+  clearInterval(cleanupTimer);
+  cleanupTimer = null;
 }

@@ -11,8 +11,8 @@ logger.info(`Server starting on port ${port}`);
 let isShuttingDown = false;
 
 const server = Bun.serve({
-  port,
   fetch: app.fetch,
+  port,
 });
 
 /**

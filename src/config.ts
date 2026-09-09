@@ -1,7 +1,18 @@
 import logger from "./logger";
 
 /**
+ * Complete configuration interface
+ *
+ * @interface
+ * @property {Record<string, MapSource>} maps - Map sources configuration
+ */
+export interface Config {
+  maps: Record<string, MapSource>;
+}
+
+/**
  * Map source configuration interface
+ *
  * @interface
  * @property {string} name - Display name of the map source
  * @property {string} description - Description of the map source
@@ -11,24 +22,15 @@ import logger from "./logger";
  * @property {Record<string, string>} [headers] - Additional HTTP headers
  */
 export interface MapSource {
-  name: string;
-  description: string;
-  urlTemplate: string;
-  cachePrefix: string;
-  subdomains?: string[];
-  headers?: Record<string, string>;
-  timeout?: number;
-  retryAttempts?: number;
   cacheMaxAge?: number;
-}
-
-/**
- * Complete configuration interface
- * @interface
- * @property {Record<string, MapSource>} maps - Map sources configuration
- */
-export interface Config {
-  maps: Record<string, MapSource>;
+  cachePrefix: string;
+  description: string;
+  headers?: Record<string, string>;
+  name: string;
+  retryAttempts?: number;
+  subdomains?: string[];
+  timeout?: number;
+  urlTemplate: string;
 }
 
 /**
@@ -37,21 +39,73 @@ export interface Config {
  */
 export class MapConfig {
   private static instance: MapConfig;
-  private config: Config | null = null;
 
   /**
    * Get singleton instance
+   *
    * @returns {MapConfig} Configuration manager instance
    */
   public static getInstance(): MapConfig {
-    if (!MapConfig.instance) {
-      MapConfig.instance = new MapConfig();
+    if (!this.instance) {
+      this.instance = new this();
     }
-    return MapConfig.instance;
+    return this.instance;
+  }
+
+  private config: Config | null = null;
+
+  /**
+   * Get all available map sources
+   *
+   * @returns {Record<string, MapSource>} All map sources
+   */
+  public getAllMapSources(): Record<string, MapSource> {
+    if (!this.config) {
+      logger.warn("Configuration not loaded");
+      return {};
+    }
+    return this.config.maps;
+  }
+
+  /**
+   * Get available map source IDs
+   *
+   * @returns {string[]} List of available map source identifiers
+   */
+  public getAvailableSources(): string[] {
+    if (!this.config) {
+      return [];
+    }
+    return Object.keys(this.config.maps);
+  }
+
+  /**
+   * Get map source configuration by ID
+   *
+   * @param {string} mapId - Map source identifier
+   * @returns {MapSource | null} Map source configuration or null if not found
+   */
+  public getMapSource(mapId: string): MapSource | null {
+    if (!this.config) {
+      logger.warn("Configuration not loaded");
+      return null;
+    }
+    return this.config.maps[mapId] || null;
+  }
+
+  /**
+   * Check if map source exists
+   *
+   * @param {string} mapId - Map source identifier
+   * @returns {boolean} True if map source exists
+   */
+  public hasMapSource(mapId: string): boolean {
+    return this.getMapSource(mapId) !== null;
   }
 
   /**
    * Load configuration from JSON file
+   *
    * @param {string} [configPath] - Path to configuration file
    * @returns {Promise<void>}
    */
@@ -82,51 +136,6 @@ export class MapConfig {
       logger.error(`Failed to load configuration: ${error}`);
       throw error;
     }
-  }
-
-  /**
-   * Get map source configuration by ID
-   * @param {string} mapId - Map source identifier
-   * @returns {MapSource | null} Map source configuration or null if not found
-   */
-  public getMapSource(mapId: string): MapSource | null {
-    if (!this.config) {
-      logger.warn("Configuration not loaded");
-      return null;
-    }
-    return this.config.maps[mapId] || null;
-  }
-
-  /**
-   * Get all available map sources
-   * @returns {Record<string, MapSource>} All map sources
-   */
-  public getAllMapSources(): Record<string, MapSource> {
-    if (!this.config) {
-      logger.warn("Configuration not loaded");
-      return {};
-    }
-    return this.config.maps;
-  }
-
-  /**
-   * Check if map source exists
-   * @param {string} mapId - Map source identifier
-   * @returns {boolean} True if map source exists
-   */
-  public hasMapSource(mapId: string): boolean {
-    return this.getMapSource(mapId) !== null;
-  }
-
-  /**
-   * Get available map source IDs
-   * @returns {string[]} List of available map source identifiers
-   */
-  public getAvailableSources(): string[] {
-    if (!this.config) {
-      return [];
-    }
-    return Object.keys(this.config.maps);
   }
 }
 

@@ -1,15 +1,15 @@
 import { pino } from "pino";
 
 const logger = pino({
-  name: "maptile-cache",
   level: Bun.env.LOG_LEVEL || "info",
+  name: "maptile-cache",
   transport: {
-    target: "pino-pretty",
     options: {
       colorize: true,
-      translateTime: "SYS:yyyy-mm-dd HH:MM:ss",
       ignore: "pid,hostname",
+      translateTime: "SYS:yyyy-mm-dd HH:MM:ss",
     },
+    target: "pino-pretty",
   },
 });
 
