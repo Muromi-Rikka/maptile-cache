@@ -105,17 +105,14 @@ function detectImageType(buffer: Uint8Array): string {
     return "png";
   }
 
-  // WebP signature: 52 49 46 46 ... 57 45 42 50
-  if (buffer.length >= 12
+  // WebP signature: 52 49 46 46 ... 57 45 42 50; default to png if unknown
+  return buffer.length >= 12
     && buffer[0] === 0x52 && buffer[1] === 0x49
     && buffer[2] === 0x46 && buffer[3] === 0x46
     && buffer[8] === 0x57 && buffer[9] === 0x45
-    && buffer[10] === 0x42 && buffer[11] === 0x50) {
-    return "webp";
-  }
-
-  // Default to png if unknown
-  return "png";
+    && buffer[10] === 0x42 && buffer[11] === 0x50
+    ? "webp"
+    : "png";
 }
 
 /**

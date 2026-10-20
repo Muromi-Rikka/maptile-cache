@@ -73,10 +73,7 @@ export class MapConfig {
    * @returns {string[]} List of available map source identifiers
    */
   public getAvailableSources(): string[] {
-    if (!this.config) {
-      return [];
-    }
-    return Object.keys(this.config.maps);
+    return this.config ? Object.keys(this.config.maps) : [];
   }
 
   /**

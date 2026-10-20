@@ -144,10 +144,9 @@ export function getMemoryCacheStats(): { bytes: number; hitRate: number; hits: n
  */
 function generateIndexKey(
   { mapSource, x, y, z }: TileCacheKey,
-  cachePrefix?: string,
+  cachePrefix: string = mapSource,
 ): string {
-  const prefix = cachePrefix || mapSource;
-  const cleanPrefix = prefix.replaceAll(/^\/+|\/+$/g, "");
+  const cleanPrefix = cachePrefix.replaceAll(/^\/+|\/+$/g, "");
   return cleanPrefix ? `${cleanPrefix}:${z}:${x}:${y}` : `${z}:${x}:${y}`;
 }
 
