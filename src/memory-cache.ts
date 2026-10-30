@@ -83,28 +83,6 @@ export class MemoryCache<V> {
   }
 
   /**
-   * Estimate byte size of a value
-   *
-   * @param {V} value - The value to measure
-   * @returns {number} Estimated byte size
-   */
-  private estimateBytes(value: V): number {
-    if (value instanceof Uint8Array) {
-      return value.byteLength;
-    }
-    if (typeof value === "string") {
-      return value.length * 2; // UTF-16
-    }
-    // Rough estimate for other types
-    try {
-      return JSON.stringify(value).length * 2;
-    }
-    catch {
-      return 64; // fallback estimate
-    }
-  }
-
-  /**
    * Set a value in the cache
    *
    * @param {string} key - The cache key
@@ -142,5 +120,27 @@ export class MemoryCache<V> {
       value,
     });
     this.currentBytes += bytes;
+  }
+
+  /**
+   * Estimate byte size of a value
+   *
+   * @param {V} value - The value to measure
+   * @returns {number} Estimated byte size
+   */
+  private estimateBytes(value: V): number {
+    if (value instanceof Uint8Array) {
+      return value.byteLength;
+    }
+    if (typeof value === "string") {
+      return value.length * 2; // UTF-16
+    }
+    // Rough estimate for other types
+    try {
+      return JSON.stringify(value).length * 2;
+    }
+    catch {
+      return 64; // fallback estimate
+    }
   }
 }

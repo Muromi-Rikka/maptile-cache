@@ -279,14 +279,15 @@ app.get("/tiles", async (c) => {
 
       // Build tile URL
       let url = mapSource.urlTemplate
-        .replaceAll("{z}", z)
-        .replaceAll("{x}", x)
-        .replaceAll("{y}", y);
+        .replaceAll("{z}", () => String(z))
+        .replaceAll("{x}", () => String(x))
+        .replaceAll("{y}", () => String(y));
 
       // Handle subdomain rotation
       if (mapSource.subdomains && mapSource.subdomains.length > 0) {
         const subdomainIndex = (xCoord + yCoord + zoom) % mapSource.subdomains.length;
-        url = url.replaceAll("{s}", mapSource.subdomains[subdomainIndex]);
+        const subdomain = mapSource.subdomains[subdomainIndex];
+        url = url.replaceAll("{s}", () => subdomain);
       }
 
       logger.debug(`Cache miss, fetching tile: tiles?source=${source}&z=${z}&x=${x}&y=${y} from ${url}`);

@@ -23,16 +23,16 @@ export class Singleflight<T> {
    * On error, the entry is removed so the next caller can retry.
    *
    * @param {string} key - The deduplication key
-   * @param {() => Promise<T>} fn - The function to execute
+   * @param {() => Promise<T>} loader - The function to execute
    * @returns {Promise<T>} The result of the function
    */
-  async do(key: string, fn: () => Promise<T>): Promise<T> {
+  async do(key: string, loader: () => Promise<T>): Promise<T> {
     const existing = this.inflight.get(key);
     if (existing) {
       return existing;
     }
 
-    const promise = fn().catch((error) => {
+    const promise = loader().catch((error) => {
       // Remove on failure so the next caller can retry
       this.inflight.delete(key);
       throw error;

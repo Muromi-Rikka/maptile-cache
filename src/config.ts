@@ -40,6 +40,8 @@ export interface MapSource {
 export class MapConfig {
   private static instance: MapConfig;
 
+  private config: Config | null = null;
+
   /**
    * Get singleton instance
    *
@@ -51,8 +53,6 @@ export class MapConfig {
     }
     return this.instance;
   }
-
-  private config: Config | null = null;
 
   /**
    * Get all available map sources

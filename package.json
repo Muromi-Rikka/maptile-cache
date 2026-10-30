@@ -33,8 +33,8 @@
     "dev": "bun run --hot src/server.ts",
     "start": "bun run src/server.ts",
     "build": "bun build src/server.ts --outdir=dist",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
+    "lint": "eslint . --max-warnings=0 --no-warn-ignored",
+    "lint:fix": "eslint . --fix --no-warn-ignored",
     "type-check": "tsc --noEmit",
     "test": "bun test",
     "test:watch": "bun test --watch"
