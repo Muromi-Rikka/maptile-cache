@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import pkg from "../package.json";
 import app from "../src/index";
 
 describe("API Endpoints", () => {
@@ -24,7 +25,7 @@ describe("API Endpoints", () => {
       expect(data).toHaveProperty("status", "ok");
       expect(data).toHaveProperty("timestamp");
       expect(data).toHaveProperty("service", "maptile-cache");
-      expect(data).toHaveProperty("version", "1.0.0");
+      expect(data).toHaveProperty("version", pkg.version);
       expect(data).toHaveProperty("availableSources");
     });
   });
