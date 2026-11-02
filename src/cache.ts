@@ -53,7 +53,11 @@ export async function cacheTileWithType(
     logger.info(`Caching tile to S3: ${objectKey}`);
 
     const file = s3.file(objectKey);
-    const contentType = imageType === "jpg" ? "image/jpeg" : (imageType === "webp" ? "image/webp" : "image/png");
+    const contentType = imageType === "jpg"
+      ? "image/jpeg"
+      : (imageType === "webp"
+          ? "image/webp"
+          : "image/png");
     await file.write(data, {
       type: contentType,
     });
@@ -147,7 +151,9 @@ function generateIndexKey(
   cachePrefix: string = mapSource,
 ): string {
   const cleanPrefix = cachePrefix.replaceAll(/^\/+|\/+$/g, "");
-  return cleanPrefix ? `${cleanPrefix}:${z}:${x}:${y}` : `${z}:${x}:${y}`;
+  return cleanPrefix
+    ? `${cleanPrefix}:${z}:${x}:${y}`
+    : `${z}:${x}:${y}`;
 }
 
 /**
@@ -167,5 +173,7 @@ function generateTileKey(
   const cleanPrefix = prefix.replaceAll(/^\/+|\/+$/g, "");
   const tilePath = `tiles/${z}/${x}/${y}.${extension}`;
 
-  return cleanPrefix ? `${cleanPrefix}/${tilePath}` : tilePath;
+  return cleanPrefix
+    ? `${cleanPrefix}/${tilePath}`
+    : tilePath;
 }

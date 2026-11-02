@@ -49,7 +49,9 @@ async function gracefulShutdown(signal: string) {
     logger.info("All in-flight requests completed");
   }
 
-  process.exit(remaining > 0 ? 1 : 0);
+  process.exit(remaining > 0
+    ? 1
+    : 0);
 }
 
 // Register signal handlers

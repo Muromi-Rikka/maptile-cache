@@ -75,7 +75,9 @@ export class MemoryCache<V> {
     const total = this.hits + this.misses;
     return {
       bytes: this.currentBytes,
-      hitRate: total > 0 ? this.hits / total : 0,
+      hitRate: total > 0
+        ? this.hits / total
+        : 0,
       hits: this.hits,
       misses: this.misses,
       size: this.cache.size,

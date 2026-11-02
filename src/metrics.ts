@@ -26,12 +26,22 @@ export class Metrics {
   } {
     const totalCache = this.cacheHits + this.cacheMisses;
     return {
-      avgLatencyMs: this.requests > 0 ? this.totalLatency / this.requests : 0,
-      cacheHitRate: totalCache > 0 ? this.cacheHits / totalCache : 0,
+      avgLatencyMs: this.requests > 0
+        ? this.totalLatency / this.requests
+        : 0,
+      cacheHitRate: totalCache > 0
+        ? this.cacheHits / totalCache
+        : 0,
       cacheHits: this.cacheHits,
       cacheMisses: this.cacheMisses,
       errors: this.errors,
-      memoryCacheStats: { bytes: 0, hitRate: 0, hits: 0, misses: 0, size: 0 },
+      memoryCacheStats: {
+        bytes: 0,
+        hitRate: 0,
+        hits: 0,
+        misses: 0,
+        size: 0,
+      },
       requests: this.requests,
       uptime: Math.floor((Date.now() - this.startTime) / 1000),
     };
