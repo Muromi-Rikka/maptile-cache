@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { Singleflight } from "../src/singleflight";
 
-async function failingFunction() {
+async function failingFunction(): Promise<never> {
   throw new Error("Test error");
 }
 
