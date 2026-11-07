@@ -5,7 +5,7 @@
     "": {
       "name": "maptile-cache",
       "dependencies": {
-        "hono": "^4.13.16",
+        "hono": "^4.13.17",
         "pino": "^10.4.0",
         "pino-pretty": "^13.2.0",
       },
@@ -368,7 +368,7 @@
 
     "help-me": ["help-me@5.0.0", "https://registry.npmmirror.com/help-me/-/help-me-5.0.0.tgz", {}, "sha512-7xgomUX6ADmcYzFik0HzAxh/73YlKR9bmFzf51CZwR+b6YtzU2m0u49hQCqV6SvlqIqsaxovfwdvbnsw3b/zpg=="],
 
-    "hono": ["hono@4.13.16", "", {}, "sha512-AOLOEhvrV+iH92xXCnFr/5+3KjPKcI3xP63XJtX5spAnkznPdHijlIsUTpi7/9EhWqrTCekw5c5zh1K+YsVw7A=="],
+    "hono": ["hono@4.13.17", "", {}, "sha512-vZIcbkvjOR5hHRWERbGkr8fGfF0GGM1ooYkuH448iO3b2AdVEr3AXZSw4Z3Kn+1L5z0CVoVeyV29VGYmFh05kQ=="],
 
     "hookified": ["hookified@1.15.1", "https://registry.npmmirror.com/hookified/-/hookified-1.15.1.tgz", {}, "sha512-MvG/clsADq1GPM2KGo2nyfaWVyn9naPiXrqIe4jYjXNZQt238kWyOGrsyc/DmRAQ+Re6yeo6yX/yoNCG5KAEVg=="],
 
