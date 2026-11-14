@@ -47,7 +47,7 @@
   "devDependencies": {
     "@renton/eslint-config": "^2.0.0",
     "@types/bun": "latest",
-    "eslint": "^10.14.0",
+    "eslint": "^10.15.0",
     "jiti": "^2.7.0"
   }
 }
